@@ -23,7 +23,8 @@ import { CSS } from '@dnd-kit/utilities'
 
 type Card = {
   id: number
-  content: string
+  title: string
+  memo: string
 }
 
 type Column = {
@@ -32,25 +33,255 @@ type Column = {
   cards: Card[]
 }
 
+// 削除確認モーダルコンポーネント
+function DeleteConfirmModal({
+  isOpen,
+  cardTitle,
+  onConfirm,
+  onCancel
+}: {
+  isOpen: boolean
+  cardTitle: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">「{cardTitle}」を削除しますか？</h3>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            削除
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 確認モーダルコンポーネント
+function ViewModal({
+  isOpen,
+  title,
+  memo,
+  onClose,
+  onEdit
+}: {
+  isOpen: boolean
+  title: string
+  memo: string
+  onClose: () => void
+  onEdit: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">カードの詳細</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            title="閉じる"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              タイトル
+            </label>
+            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded">
+              <p className="text-gray-800">{title}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              メモ
+            </label>
+            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded min-h-[150px]">
+              <p className="text-gray-800 whitespace-pre-wrap">{memo}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-6 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            閉じる
+          </button>
+          <button
+            onClick={onEdit}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            編集
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 編集モーダルコンポーネント
+function EditModal({
+  isOpen,
+  title,
+  memo,
+  onSave,
+  onCancel,
+  onTitleChange,
+  onMemoChange
+}: {
+  isOpen: boolean
+  title: string
+  memo: string
+  onSave: () => void
+  onCancel: () => void
+  onTitleChange: (title: string) => void
+  onMemoChange: (memo: string) => void
+}) {
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isOpen && titleInputRef.current) {
+      const input = titleInputRef.current
+      const length = input.value.length
+      input.focus()
+      input.setSelectionRange(length, length)
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">カードを編集</h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              タイトル
+            </label>
+            <input
+              ref={titleInputRef}
+              type="text"
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  onSave()
+                }
+                if (e.key === 'Escape') {
+                  onCancel()
+                }
+              }}
+              placeholder="タイトルを入力..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              メモ
+            </label>
+            <textarea
+              className="w-full p-3 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={memo}
+              onChange={(e) => onMemoChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  onCancel()
+                }
+              }}
+              rows={6}
+              placeholder="メモを入力..."
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-6 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onSave}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ドラッグ可能なカードコンポーネント
 function SortableCard({
   card,
-  isEditing,
-  editingContent,
   onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onContentChange,
-  onDelete
+  onDelete,
+  onView
 }: {
   card: Card
-  isEditing: boolean
-  editingContent: string
   onStartEdit: (card: Card) => void
-  onSaveEdit: () => void
-  onCancelEdit: () => void
-  onContentChange: (content: string) => void
-  onDelete: (cardId: number) => void
+  onDelete: (card: Card) => void
+  onView: (card: Card) => void
 }) {
   const {
     attributes,
@@ -59,51 +290,12 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: card.id, disabled: isEditing })
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  } = useSortable({ id: card.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  }
-
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      const textarea = textareaRef.current
-      const length = textarea.value.length
-      textarea.focus()
-      textarea.setSelectionRange(length, length)
-    }
-  }, [isEditing])
-
-  if (isEditing) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="bg-white border-2 border-blue-300 rounded p-3"
-      >
-        <textarea
-          ref={textareaRef}
-          className="w-full p-2 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={editingContent}
-          onChange={(e) => onContentChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              onSaveEdit()
-            }
-            if (e.key === 'Escape') {
-              onCancelEdit()
-            }
-          }}
-          onBlur={onSaveEdit}
-          rows={2}
-        />
-      </div>
-    )
   }
 
   return (
@@ -113,10 +305,14 @@ function SortableCard({
       {...attributes}
       {...listeners}
       className="bg-gray-50 border border-gray-200 rounded p-3 hover:shadow-md transition-shadow cursor-move group select-none"
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        onView(card)
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <p className="text-gray-800">{card.content}</p>
+          <p className="text-gray-800">{card.title}</p>
         </div>
         <div
           className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -148,7 +344,7 @@ function SortableCard({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              onDelete(card.id)
+              onDelete(card)
             }}
             className="p-1 hover:bg-red-100 rounded cursor-pointer"
             title="削除"
@@ -210,23 +406,23 @@ function App() {
       id: 'todo',
       title: 'To Do',
       cards: [
-        { id: 1, content: 'タスク 1' },
-        { id: 2, content: 'タスク 2' },
+        { id: 1, title: 'タスク 1', memo: '' },
+        { id: 2, title: 'タスク 2', memo: '' },
       ]
     },
     {
       id: 'in-progress',
       title: 'In Progress',
       cards: [
-        { id: 3, content: 'タスク 3' },
+        { id: 3, title: 'タスク 3', memo: '' },
       ]
     },
     {
       id: 'done',
       title: 'Done',
       cards: [
-        { id: 4, content: 'タスク 4' },
-        { id: 5, content: 'タスク 5' },
+        { id: 4, title: 'タスク 4', memo: '' },
+        { id: 5, title: 'タスク 5', memo: '' },
       ]
     }
   ])
@@ -235,7 +431,10 @@ function App() {
   const [isAddingCard, setIsAddingCard] = useState(false)
   const [activeCard, setActiveCard] = useState<Card | null>(null)
   const [editingCardId, setEditingCardId] = useState<number | null>(null)
-  const [editingContent, setEditingContent] = useState('')
+  const [editingTitle, setEditingTitle] = useState('')
+  const [editingMemo, setEditingMemo] = useState('')
+  const [viewingCard, setViewingCard] = useState<Card | null>(null)
+  const [deletingCard, setDeletingCard] = useState<Card | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -329,7 +528,8 @@ function App() {
 
     const newCard: Card = {
       id: Date.now(),
-      content: newCardContent
+      title: newCardContent,
+      memo: ''
     }
 
     setColumns(prevColumns => {
@@ -345,14 +545,14 @@ function App() {
     setIsAddingCard(false)
   }
 
-  const updateCard = (cardId: number, newContent: string) => {
-    if (!newContent.trim()) return
+  const updateCard = (cardId: number, newTitle: string, newMemo: string) => {
+    if (!newTitle.trim()) return
 
     setColumns(prevColumns => {
       return prevColumns.map(column => ({
         ...column,
         cards: column.cards.map(card =>
-          card.id === cardId ? { ...card, content: newContent } : card
+          card.id === cardId ? { ...card, title: newTitle, memo: newMemo } : card
         )
       }))
     })
@@ -360,29 +560,60 @@ function App() {
 
   const startEditingCard = (card: Card) => {
     setEditingCardId(card.id)
-    setEditingContent(card.content)
+    setEditingTitle(card.title)
+    setEditingMemo(card.memo)
   }
 
   const saveCardEdit = () => {
-    if (editingCardId !== null && editingContent.trim()) {
-      updateCard(editingCardId, editingContent)
+    if (editingCardId !== null && editingTitle.trim()) {
+      updateCard(editingCardId, editingTitle, editingMemo)
     }
     setEditingCardId(null)
-    setEditingContent('')
+    setEditingTitle('')
+    setEditingMemo('')
   }
 
   const cancelCardEdit = () => {
     setEditingCardId(null)
-    setEditingContent('')
+    setEditingTitle('')
+    setEditingMemo('')
   }
 
-  const deleteCard = (cardId: number) => {
-    setColumns(prevColumns => {
-      return prevColumns.map(column => ({
-        ...column,
-        cards: column.cards.filter(card => card.id !== cardId)
-      }))
-    })
+  const openDeleteConfirm = (card: Card) => {
+    setDeletingCard(card)
+  }
+
+  const closeDeleteConfirm = () => {
+    setDeletingCard(null)
+  }
+
+  const confirmDelete = () => {
+    if (deletingCard) {
+      setColumns(prevColumns => {
+        return prevColumns.map(column => ({
+          ...column,
+          cards: column.cards.filter(card => card.id !== deletingCard.id)
+        }))
+      })
+      setDeletingCard(null)
+    }
+  }
+
+  const openViewModal = (card: Card) => {
+    setViewingCard(card)
+  }
+
+  const closeViewModal = () => {
+    setViewingCard(null)
+  }
+
+  const openEditFromView = () => {
+    if (viewingCard) {
+      setEditingCardId(viewingCard.id)
+      setEditingTitle(viewingCard.title)
+      setEditingMemo(viewingCard.memo)
+      setViewingCard(null)
+    }
   }
 
   return (
@@ -404,13 +635,9 @@ function App() {
                   <SortableCard
                     key={card.id}
                     card={card}
-                    isEditing={editingCardId === card.id}
-                    editingContent={editingContent}
                     onStartEdit={startEditingCard}
-                    onSaveEdit={saveCardEdit}
-                    onCancelEdit={cancelCardEdit}
-                    onContentChange={setEditingContent}
-                    onDelete={deleteCard}
+                    onDelete={openDeleteConfirm}
+                    onView={openViewModal}
                   />
                 ))}
 
@@ -473,10 +700,35 @@ function App() {
       <DragOverlay>
         {activeCard ? (
           <div className="bg-gray-50 border border-gray-200 rounded p-3 shadow-lg rotate-3">
-            <p className="text-gray-800">{activeCard.content}</p>
+            <p className="text-gray-800">{activeCard.title}</p>
           </div>
         ) : null}
       </DragOverlay>
+
+      <DeleteConfirmModal
+        isOpen={deletingCard !== null}
+        cardTitle={deletingCard?.title || ''}
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteConfirm}
+      />
+
+      <ViewModal
+        isOpen={viewingCard !== null}
+        title={viewingCard?.title || ''}
+        memo={viewingCard?.memo || ''}
+        onClose={closeViewModal}
+        onEdit={openEditFromView}
+      />
+
+      <EditModal
+        isOpen={editingCardId !== null}
+        title={editingTitle}
+        memo={editingMemo}
+        onSave={saveCardEdit}
+        onCancel={cancelCardEdit}
+        onTitleChange={setEditingTitle}
+        onMemoChange={setEditingMemo}
+      />
     </DndContext>
   )
 }
