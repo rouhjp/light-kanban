@@ -6,6 +6,7 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  closestCenter,
   useDroppable,
 } from '@dnd-kit/core'
 import type {
@@ -17,6 +18,7 @@ import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -33,8 +35,145 @@ type Column = {
   cards: Card[]
 }
 
-// 削除確認モーダルコンポーネント
-function DeleteConfirmModal({
+// カラム編集モーダルコンポーネント
+function EditColumnModal({
+  isOpen,
+  columnTitle,
+  onSave,
+  onCancel,
+  onTitleChange,
+  isAddMode = false
+}: {
+  isOpen: boolean
+  columnTitle: string
+  onSave: () => void
+  onCancel: () => void
+  onTitleChange: (title: string) => void
+  isAddMode?: boolean
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      const input = inputRef.current
+      const length = input.value.length
+      input.focus()
+      input.setSelectionRange(length, length)
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          {isAddMode ? 'カラムを追加' : 'カラム名を編集'}
+        </h3>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            カラム名
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={columnTitle}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onSave()
+              }
+              if (e.key === 'Escape') {
+                onCancel()
+              }
+            }}
+            placeholder="カラム名を入力..."
+          />
+        </div>
+
+        <div className="flex gap-2 mt-6 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onSave}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// カラム削除確認モーダルコンポーネント
+function DeleteColumnConfirmModal({
+  isOpen,
+  columnTitle,
+  cardCount,
+  onConfirm,
+  onCancel
+}: {
+  isOpen: boolean
+  columnTitle: string
+  cardCount: number
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">「{columnTitle}」を削除しますか？</h3>
+          {cardCount > 0 && (
+            <p className="text-sm text-gray-600 mt-2">
+              このカラムには{cardCount}個のカードがあります。カラムを削除すると、すべてのカードも削除されます。
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            削除
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// カード削除確認モーダルコンポーネント
+function DeleteCardConfirmModal({
   isOpen,
   cardTitle,
   onConfirm,
@@ -290,7 +429,13 @@ function SortableCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: card.id })
+  } = useSortable({
+    id: card.id,
+    data: {
+      type: 'card',
+      card,
+    }
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -370,25 +515,108 @@ function SortableCard({
   )
 }
 
-// ドロップ可能なカラムコンポーネント
-function DroppableColumn({
+// ドラッグ&ドロップ可能なカラムコンポーネント
+function SortableColumn({
   column,
   columnIndex,
-  children
+  children,
+  onEditColumn,
+  onDeleteColumn
 }: {
   column: Column
   columnIndex: number
   children: React.ReactNode
+  onEditColumn: (columnId: string, columnTitle: string) => void
+  onDeleteColumn: (column: Column) => void
 }) {
-  const { setNodeRef } = useDroppable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: column.id,
+    data: {
+      type: 'column',
+      column,
+    }
   })
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   return (
-    <div ref={setNodeRef} className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-xl font-semibold text-gray-700 mb-4">
-        {column.title}
-      </h2>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white rounded-lg shadow-md p-4 min-w-[320px] flex-shrink-0 ${
+        isDragging ? 'opacity-0' : ''
+      }`}
+    >
+      <div
+        className="flex items-center justify-between mb-4 group"
+        {...attributes}
+        {...listeners}
+      >
+        <h2 className="text-xl font-semibold text-gray-700 cursor-move select-none">
+          {column.title}
+        </h2>
+        <div
+          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onEditColumn(column.id, column.title)
+            }}
+            className="p-1 hover:bg-blue-100 rounded cursor-pointer"
+            title="カラム名を編集"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDeleteColumn(column)
+            }}
+            className="p-1 hover:bg-red-100 rounded cursor-pointer"
+            title="カラムを削除"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
 
       <SortableContext
         items={column.cards.map(card => card.id)}
@@ -435,6 +663,13 @@ function App() {
   const [editingMemo, setEditingMemo] = useState('')
   const [viewingCard, setViewingCard] = useState<Card | null>(null)
   const [deletingCard, setDeletingCard] = useState<Card | null>(null)
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
+  const [editingColumnTitle, setEditingColumnTitle] = useState('')
+  const [deletingColumn, setDeletingColumn] = useState<Column | null>(null)
+  const [isAddingColumn, setIsAddingColumn] = useState(false)
+  const [newColumnTitle, setNewColumnTitle] = useState('')
+  const [activeColumn, setActiveColumn] = useState<Column | null>(null)
+  const [addingColumnAtIndex, setAddingColumnAtIndex] = useState<number | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -464,6 +699,15 @@ function App() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
+
+    // カラムのドラッグかチェック
+    const column = columns.find(col => col.id === active.id)
+    if (column) {
+      setActiveColumn(column)
+      return
+    }
+
+    // カードのドラッグ
     const card = columns
       .flatMap(col => col.cards)
       .find(card => card.id === active.id)
@@ -474,6 +718,34 @@ function App() {
     const { active, over } = event
     if (!over) return
 
+    const activeData = active.data.current
+    const overData = over.data.current
+
+    // カラムのドラッグの場合
+    if (activeData?.type === 'column') {
+      // over先がカラムの場合
+      if (overData?.type === 'column' && active.id !== over.id) {
+        setColumns(prevColumns => {
+          const oldIndex = prevColumns.findIndex(col => col.id === active.id)
+          const newIndex = prevColumns.findIndex(col => col.id === over.id)
+          return arrayMove(prevColumns, oldIndex, newIndex)
+        })
+      }
+      // over先がカードの場合、そのカードが属するカラムを見つける
+      else if (overData?.type === 'card') {
+        const overColumnId = findContainer(over.id)
+        if (overColumnId && active.id !== overColumnId) {
+          setColumns(prevColumns => {
+            const oldIndex = prevColumns.findIndex(col => col.id === active.id)
+            const newIndex = prevColumns.findIndex(col => col.id === overColumnId)
+            return arrayMove(prevColumns, oldIndex, newIndex)
+          })
+        }
+      }
+      return
+    }
+
+    // カードのドラッグの場合
     const activeContainer = findContainer(active.id)
     const overContainer = findContainer(over.id)
 
@@ -485,10 +757,10 @@ function App() {
 
       if (activeColumnIndex === -1 || overColumnIndex === -1) return prevColumns
 
-      const activeColumn = prevColumns[activeColumnIndex]
-      const overColumn = prevColumns[overColumnIndex]
+      const activeCol = prevColumns[activeColumnIndex]
+      const overCol = prevColumns[overColumnIndex]
 
-      const activeCardIndex = activeColumn.cards.findIndex(card => card.id === active.id)
+      const activeCardIndex = activeCol.cards.findIndex(card => card.id === active.id)
 
       if (activeCardIndex === -1) return prevColumns
 
@@ -496,12 +768,12 @@ function App() {
 
       if (activeContainer === overContainer) {
         // 同じカラム内での並び替え
-        const overCardIndex = overColumn.cards.findIndex(card => card.id === over.id)
+        const overCardIndex = overCol.cards.findIndex(card => card.id === over.id)
 
         if (overCardIndex !== -1 && activeCardIndex !== overCardIndex) {
           newColumns[activeColumnIndex] = {
-            ...activeColumn,
-            cards: arrayMove(activeColumn.cards, activeCardIndex, overCardIndex)
+            ...activeCol,
+            cards: arrayMove(activeCol.cards, activeCardIndex, overCardIndex)
           }
         }
       } else {
@@ -510,7 +782,7 @@ function App() {
         const [movedCard] = newColumns[activeColumnIndex].cards.splice(activeCardIndex, 1)
 
         // カードを移動先のカラムに追加
-        const overCardIndex = overColumn.cards.findIndex(card => card.id === over.id)
+        const overCardIndex = overCol.cards.findIndex(card => card.id === over.id)
         const insertIndex = overCardIndex >= 0 ? overCardIndex : newColumns[overColumnIndex].cards.length
         newColumns[overColumnIndex].cards.splice(insertIndex, 0, movedCard)
       }
@@ -521,6 +793,7 @@ function App() {
 
   const handleDragEnd = () => {
     setActiveCard(null)
+    setActiveColumn(null)
   }
 
   const addCard = () => {
@@ -616,10 +889,74 @@ function App() {
     }
   }
 
+  const startEditingColumn = (columnId: string, columnTitle: string) => {
+    setEditingColumnId(columnId)
+    setEditingColumnTitle(columnTitle)
+  }
+
+  const saveColumnEdit = () => {
+    if (editingColumnId !== null && editingColumnTitle.trim()) {
+      setColumns(prevColumns => {
+        return prevColumns.map(column =>
+          column.id === editingColumnId
+            ? { ...column, title: editingColumnTitle }
+            : column
+        )
+      })
+    }
+    setEditingColumnId(null)
+    setEditingColumnTitle('')
+  }
+
+  const cancelColumnEdit = () => {
+    setEditingColumnId(null)
+    setEditingColumnTitle('')
+  }
+
+  const openDeleteColumnConfirm = (column: Column) => {
+    setDeletingColumn(column)
+  }
+
+  const closeDeleteColumnConfirm = () => {
+    setDeletingColumn(null)
+  }
+
+  const confirmDeleteColumn = () => {
+    if (deletingColumn) {
+      setColumns(prevColumns => prevColumns.filter(col => col.id !== deletingColumn.id))
+      setDeletingColumn(null)
+    }
+  }
+
+  const addColumn = () => {
+    if (!newColumnTitle.trim()) return
+
+    const newColumn: Column = {
+      id: `column-${Date.now()}`,
+      title: newColumnTitle,
+      cards: []
+    }
+
+    setColumns(prevColumns => {
+      if (addingColumnAtIndex !== null) {
+        // 指定された位置に挿入
+        const newColumns = [...prevColumns]
+        newColumns.splice(addingColumnAtIndex + 1, 0, newColumn)
+        return newColumns
+      } else {
+        // 最後に追加
+        return [...prevColumns, newColumn]
+      }
+    })
+    setNewColumnTitle('')
+    setIsAddingColumn(false)
+    setAddingColumnAtIndex(null)
+  }
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -627,73 +964,112 @@ function App() {
       <div className="min-h-screen bg-gray-100 p-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Light Kanban</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {columns.map((column, columnIndex) => (
-            <DroppableColumn key={column.id} column={column} columnIndex={columnIndex}>
-              <div className="space-y-3 min-h-[200px]">
-                {column.cards.map((card) => (
-                  <SortableCard
-                    key={card.id}
-                    card={card}
-                    onStartEdit={startEditingCard}
-                    onDelete={openDeleteConfirm}
-                    onView={openViewModal}
-                  />
-                ))}
+        <div className="flex justify-center">
+          <div className="flex overflow-x-auto pb-4">
+          {columns.length === 0 ? (
+            /* カラムが0個の場合の追加枠 */
+            <button
+              onClick={() => setIsAddingColumn(true)}
+              className="rounded-lg p-4 w-full text-left text-gray-600 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors min-h-[200px] flex items-center justify-center"
+            >
+              + カラムを追加
+            </button>
+          ) : (
+            <SortableContext
+              items={columns.map(col => col.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {columns.map((column, columnIndex) => (
+                <>
+                  <SortableColumn
+                    key={column.id}
+                    column={column}
+                    columnIndex={columnIndex}
+                    onEditColumn={startEditingColumn}
+                    onDeleteColumn={openDeleteColumnConfirm}
+                  >
+                <div className="space-y-3 min-h-[200px]">
+                  {column.cards.map((card) => (
+                    <SortableCard
+                      key={card.id}
+                      card={card}
+                      onStartEdit={startEditingCard}
+                      onDelete={openDeleteConfirm}
+                      onView={openViewModal}
+                    />
+                  ))}
 
-                {columnIndex === 0 && (
-                  <>
-                    {isAddingCard ? (
-                      <div className="bg-white border-2 border-blue-300 rounded p-3 space-y-2">
-                        <textarea
-                          className="w-full p-2 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="タスクの内容を入力..."
-                          rows={3}
-                          value={newCardContent}
-                          onChange={(e) => setNewCardContent(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault()
-                              addCard()
-                            }
-                            if (e.key === 'Escape') {
-                              setIsAddingCard(false)
-                              setNewCardContent('')
-                            }
-                          }}
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={addCard}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                          >
-                            追加
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsAddingCard(false)
-                              setNewCardContent('')
+                  {columnIndex === 0 && (
+                    <>
+                      {isAddingCard ? (
+                        <div className="bg-white border-2 border-blue-300 rounded p-3 space-y-2">
+                          <textarea
+                            className="w-full p-2 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="タスクの内容を入力..."
+                            rows={3}
+                            value={newCardContent}
+                            onChange={(e) => setNewCardContent(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                addCard()
+                              }
+                              if (e.key === 'Escape') {
+                                setIsAddingCard(false)
+                                setNewCardContent('')
+                              }
                             }}
-                            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-                          >
-                            キャンセル
-                          </button>
+                            autoFocus
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={addCard}
+                              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                            >
+                              追加
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsAddingCard(false)
+                                setNewCardContent('')
+                              }}
+                              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setIsAddingCard(true)}
-                        className="w-full p-3 text-left text-gray-600 hover:bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors"
-                      >
-                        + カードを追加
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </DroppableColumn>
-          ))}
+                      ) : (
+                        <button
+                          onClick={() => setIsAddingCard(true)}
+                          className="w-full p-3 text-left text-gray-600 hover:bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors"
+                        >
+                          + カードを追加
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                  </SortableColumn>
+                  {/* カラム間の追加エリア */}
+                  <div className="group flex items-center justify-center w-6 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        setAddingColumnAtIndex(columnIndex)
+                        setIsAddingColumn(true)
+                      }}
+                      className="h-full w-6 border-2 border-dashed border-transparent group-hover:border-blue-400 rounded transition-all flex items-center justify-center"
+                    >
+                      <span className="text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity text-xl">
+                        +
+                      </span>
+                    </button>
+                  </div>
+                </>
+              ))}
+            </SortableContext>
+          )}
+          </div>
         </div>
       </div>
 
@@ -702,10 +1078,52 @@ function App() {
           <div className="bg-gray-50 border border-gray-200 rounded p-3 shadow-lg rotate-3">
             <p className="text-gray-800">{activeCard.title}</p>
           </div>
+        ) : activeColumn ? (
+          <div className="bg-white rounded-lg shadow-xl p-4 min-w-[320px] opacity-80">
+            <h2 className="text-xl font-semibold text-gray-700 mb-4">
+              {activeColumn.title}
+            </h2>
+            <div className="space-y-3">
+              {activeColumn.cards.map((card) => (
+                <div key={card.id} className="bg-gray-50 border border-gray-200 rounded p-3">
+                  <p className="text-gray-800">{card.title}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
       </DragOverlay>
 
-      <DeleteConfirmModal
+      <EditColumnModal
+        isOpen={editingColumnId !== null}
+        columnTitle={editingColumnTitle}
+        onSave={saveColumnEdit}
+        onCancel={cancelColumnEdit}
+        onTitleChange={setEditingColumnTitle}
+      />
+
+      <EditColumnModal
+        isOpen={isAddingColumn}
+        columnTitle={newColumnTitle}
+        onSave={addColumn}
+        onCancel={() => {
+          setIsAddingColumn(false)
+          setNewColumnTitle('')
+          setAddingColumnAtIndex(null)
+        }}
+        onTitleChange={setNewColumnTitle}
+        isAddMode={true}
+      />
+
+      <DeleteColumnConfirmModal
+        isOpen={deletingColumn !== null}
+        columnTitle={deletingColumn?.title || ''}
+        cardCount={deletingColumn?.cards.length || 0}
+        onConfirm={confirmDeleteColumn}
+        onCancel={closeDeleteColumnConfirm}
+      />
+
+      <DeleteCardConfirmModal
         isOpen={deletingCard !== null}
         cardTitle={deletingCard?.title || ''}
         onConfirm={confirmDelete}
