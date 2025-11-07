@@ -27,28 +27,47 @@ type Card = {
   id: number
   title: string
   memo: string
+  color?: string
 }
 
 type Column = {
   id: string
   title: string
   cards: Card[]
+  color?: string
 }
+
+// カラムの色オプション
+const COLUMN_COLORS = [
+  { name: '白', value: '#ffffff', border: '#e5e7eb' },
+  { name: 'グレー', value: '#f3f4f6', border: '#e5e7eb' },
+  { name: 'ブルー', value: '#dbeafe', border: '#bfdbfe' },
+  { name: 'グリーン', value: '#dcfce7', border: '#bbf7d0' },
+  { name: 'イエロー', value: '#fef9c3', border: '#fef08a' },
+  { name: 'オレンジ', value: '#fed7aa', border: '#fdba74' },
+  { name: 'レッド', value: '#fee2e2', border: '#fecaca' },
+  { name: 'パープル', value: '#e9d5ff', border: '#d8b4fe' },
+  { name: 'ピンク', value: '#fce7f3', border: '#fbcfe8' },
+]
 
 // カラム編集モーダルコンポーネント
 function EditColumnModal({
   isOpen,
   columnTitle,
+  columnColor,
   onSave,
   onCancel,
   onTitleChange,
+  onColorChange,
   isAddMode = false
 }: {
   isOpen: boolean
   columnTitle: string
+  columnColor?: string
   onSave: () => void
   onCancel: () => void
   onTitleChange: (title: string) => void
+  onColorChange: (color: string) => void
   isAddMode?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -77,27 +96,53 @@ function EditColumnModal({
           {isAddMode ? 'カラムを追加' : 'カラム名を編集'}
         </h3>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            カラム名
-          </label>
-          <input
-            ref={inputRef}
-            type="text"
-            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={columnTitle}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                onSave()
-              }
-              if (e.key === 'Escape') {
-                onCancel()
-              }
-            }}
-            placeholder="カラム名を入力..."
-          />
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              カラム名
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={columnTitle}
+              onChange={(e) => onTitleChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  onSave()
+                }
+                if (e.key === 'Escape') {
+                  onCancel()
+                }
+              }}
+              placeholder="カラム名を入力..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              カラーテーマ
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {COLUMN_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => onColorChange(color.value)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
+                    columnColor === color.value
+                      ? 'ring-2 ring-blue-500 ring-offset-2'
+                      : ''
+                  }`}
+                  style={{
+                    backgroundColor: color.value,
+                    borderColor: color.border,
+                  }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-2 mt-6 justify-end">
@@ -306,23 +351,40 @@ function ViewModal({
   )
 }
 
+// カードの色オプション
+const CARD_COLORS = [
+  { name: '白', value: '#ffffff', border: '#e5e7eb' },
+  { name: 'グレー', value: '#f3f4f6', border: '#e5e7eb' },
+  { name: 'ブルー', value: '#dbeafe', border: '#bfdbfe' },
+  { name: 'グリーン', value: '#dcfce7', border: '#bbf7d0' },
+  { name: 'イエロー', value: '#fef9c3', border: '#fef08a' },
+  { name: 'オレンジ', value: '#fed7aa', border: '#fdba74' },
+  { name: 'レッド', value: '#fee2e2', border: '#fecaca' },
+  { name: 'パープル', value: '#e9d5ff', border: '#d8b4fe' },
+  { name: 'ピンク', value: '#fce7f3', border: '#fbcfe8' },
+]
+
 // 編集モーダルコンポーネント
 function EditModal({
   isOpen,
   title,
   memo,
+  color,
   onSave,
   onCancel,
   onTitleChange,
-  onMemoChange
+  onMemoChange,
+  onColorChange
 }: {
   isOpen: boolean
   title: string
   memo: string
+  color?: string
   onSave: () => void
   onCancel: () => void
   onTitleChange: (title: string) => void
   onMemoChange: (memo: string) => void
+  onColorChange: (color: string) => void
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
 
@@ -389,6 +451,30 @@ function EditModal({
               placeholder="メモを入力..."
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              カラーテーマ
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {CARD_COLORS.map((cardColor) => (
+                <button
+                  key={cardColor.value}
+                  onClick={() => onColorChange(cardColor.value)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
+                    color === cardColor.value
+                      ? 'ring-2 ring-blue-500 ring-offset-2'
+                      : ''
+                  }`}
+                  style={{
+                    backgroundColor: cardColor.value,
+                    borderColor: cardColor.border,
+                  }}
+                  title={cardColor.name}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-2 mt-6 justify-end">
@@ -446,10 +532,13 @@ function SortableCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        backgroundColor: card.color || '#f9fafb',
+      }}
       {...attributes}
       {...listeners}
-      className="bg-gray-50 border border-gray-200 rounded p-3 hover:shadow-md transition-shadow cursor-move group select-none"
+      className="border border-gray-200 rounded p-3 hover:shadow-md transition-shadow cursor-move group select-none"
       onDoubleClick={(e) => {
         e.stopPropagation()
         onView(card)
@@ -526,7 +615,7 @@ function SortableColumn({
   column: Column
   columnIndex: number
   children: React.ReactNode
-  onEditColumn: (columnId: string, columnTitle: string) => void
+  onEditColumn: (columnId: string, columnTitle: string, columnColor?: string) => void
   onDeleteColumn: (column: Column) => void
 }) {
   const {
@@ -552,8 +641,11 @@ function SortableColumn({
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`bg-white rounded-lg shadow-md p-4 min-w-[320px] flex-shrink-0 ${
+      style={{
+        ...style,
+        backgroundColor: column.color || '#ffffff',
+      }}
+      className={`rounded-lg shadow-md p-4 min-w-[320px] flex-shrink-0 ${
         isDragging ? 'opacity-0' : ''
       }`}
     >
@@ -572,7 +664,7 @@ function SortableColumn({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              onEditColumn(column.id, column.title)
+              onEditColumn(column.id, column.title, column.color)
             }}
             className="p-1 hover:bg-blue-100 rounded cursor-pointer"
             title="カラム名を編集"
@@ -661,13 +753,16 @@ function App() {
   const [editingCardId, setEditingCardId] = useState<number | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [editingMemo, setEditingMemo] = useState('')
+  const [editingColor, setEditingColor] = useState<string>('#ffffff')
   const [viewingCard, setViewingCard] = useState<Card | null>(null)
   const [deletingCard, setDeletingCard] = useState<Card | null>(null)
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
+  const [editingColumnColor, setEditingColumnColor] = useState<string>('#ffffff')
   const [deletingColumn, setDeletingColumn] = useState<Column | null>(null)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnTitle, setNewColumnTitle] = useState('')
+  const [newColumnColor, setNewColumnColor] = useState<string>('#ffffff')
   const [activeColumn, setActiveColumn] = useState<Column | null>(null)
   const [addingColumnAtIndex, setAddingColumnAtIndex] = useState<number | null>(null)
 
@@ -818,14 +913,14 @@ function App() {
     setIsAddingCard(false)
   }
 
-  const updateCard = (cardId: number, newTitle: string, newMemo: string) => {
+  const updateCard = (cardId: number, newTitle: string, newMemo: string, newColor: string) => {
     if (!newTitle.trim()) return
 
     setColumns(prevColumns => {
       return prevColumns.map(column => ({
         ...column,
         cards: column.cards.map(card =>
-          card.id === cardId ? { ...card, title: newTitle, memo: newMemo } : card
+          card.id === cardId ? { ...card, title: newTitle, memo: newMemo, color: newColor } : card
         )
       }))
     })
@@ -835,21 +930,24 @@ function App() {
     setEditingCardId(card.id)
     setEditingTitle(card.title)
     setEditingMemo(card.memo)
+    setEditingColor(card.color || '#ffffff')
   }
 
   const saveCardEdit = () => {
     if (editingCardId !== null && editingTitle.trim()) {
-      updateCard(editingCardId, editingTitle, editingMemo)
+      updateCard(editingCardId, editingTitle, editingMemo, editingColor)
     }
     setEditingCardId(null)
     setEditingTitle('')
     setEditingMemo('')
+    setEditingColor('#ffffff')
   }
 
   const cancelCardEdit = () => {
     setEditingCardId(null)
     setEditingTitle('')
     setEditingMemo('')
+    setEditingColor('#ffffff')
   }
 
   const openDeleteConfirm = (card: Card) => {
@@ -889,9 +987,10 @@ function App() {
     }
   }
 
-  const startEditingColumn = (columnId: string, columnTitle: string) => {
+  const startEditingColumn = (columnId: string, columnTitle: string, columnColor?: string) => {
     setEditingColumnId(columnId)
     setEditingColumnTitle(columnTitle)
+    setEditingColumnColor(columnColor || '#ffffff')
   }
 
   const saveColumnEdit = () => {
@@ -899,18 +998,20 @@ function App() {
       setColumns(prevColumns => {
         return prevColumns.map(column =>
           column.id === editingColumnId
-            ? { ...column, title: editingColumnTitle }
+            ? { ...column, title: editingColumnTitle, color: editingColumnColor }
             : column
         )
       })
     }
     setEditingColumnId(null)
     setEditingColumnTitle('')
+    setEditingColumnColor('#ffffff')
   }
 
   const cancelColumnEdit = () => {
     setEditingColumnId(null)
     setEditingColumnTitle('')
+    setEditingColumnColor('#ffffff')
   }
 
   const openDeleteColumnConfirm = (column: Column) => {
@@ -934,7 +1035,8 @@ function App() {
     const newColumn: Column = {
       id: `column-${Date.now()}`,
       title: newColumnTitle,
-      cards: []
+      cards: [],
+      color: newColumnColor
     }
 
     setColumns(prevColumns => {
@@ -949,6 +1051,7 @@ function App() {
       }
     })
     setNewColumnTitle('')
+    setNewColumnColor('#ffffff')
     setIsAddingColumn(false)
     setAddingColumnAtIndex(null)
   }
@@ -1075,17 +1178,27 @@ function App() {
 
       <DragOverlay>
         {activeCard ? (
-          <div className="bg-gray-50 border border-gray-200 rounded p-3 shadow-lg rotate-3">
+          <div
+            className="border border-gray-200 rounded p-3 shadow-lg rotate-3"
+            style={{ backgroundColor: activeCard.color || '#f9fafb' }}
+          >
             <p className="text-gray-800">{activeCard.title}</p>
           </div>
         ) : activeColumn ? (
-          <div className="bg-white rounded-lg shadow-xl p-4 min-w-[320px] opacity-80">
+          <div
+            className="rounded-lg shadow-xl p-4 min-w-[320px] opacity-80"
+            style={{ backgroundColor: activeColumn.color || '#ffffff' }}
+          >
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
               {activeColumn.title}
             </h2>
             <div className="space-y-3">
               {activeColumn.cards.map((card) => (
-                <div key={card.id} className="bg-gray-50 border border-gray-200 rounded p-3">
+                <div
+                  key={card.id}
+                  className="border border-gray-200 rounded p-3"
+                  style={{ backgroundColor: card.color || '#f9fafb' }}
+                >
                   <p className="text-gray-800">{card.title}</p>
                 </div>
               ))}
@@ -1097,21 +1210,26 @@ function App() {
       <EditColumnModal
         isOpen={editingColumnId !== null}
         columnTitle={editingColumnTitle}
+        columnColor={editingColumnColor}
         onSave={saveColumnEdit}
         onCancel={cancelColumnEdit}
         onTitleChange={setEditingColumnTitle}
+        onColorChange={setEditingColumnColor}
       />
 
       <EditColumnModal
         isOpen={isAddingColumn}
         columnTitle={newColumnTitle}
+        columnColor={newColumnColor}
         onSave={addColumn}
         onCancel={() => {
           setIsAddingColumn(false)
           setNewColumnTitle('')
+          setNewColumnColor('#ffffff')
           setAddingColumnAtIndex(null)
         }}
         onTitleChange={setNewColumnTitle}
+        onColorChange={setNewColumnColor}
         isAddMode={true}
       />
 
@@ -1142,10 +1260,12 @@ function App() {
         isOpen={editingCardId !== null}
         title={editingTitle}
         memo={editingMemo}
+        color={editingColor}
         onSave={saveCardEdit}
         onCancel={cancelCardEdit}
         onTitleChange={setEditingTitle}
         onMemoChange={setEditingMemo}
+        onColorChange={setEditingColor}
       />
     </DndContext>
   )
