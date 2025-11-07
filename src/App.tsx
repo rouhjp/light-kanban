@@ -5,12 +5,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
   closestCenter,
-  useDroppable,
 } from '@dnd-kit/core'
 import type {
-  DragEndEvent,
   DragStartEvent,
   DragOverEvent,
 } from '@dnd-kit/core'
@@ -607,13 +604,11 @@ function SortableCard({
 // ドラッグ&ドロップ可能なカラムコンポーネント
 function SortableColumn({
   column,
-  columnIndex,
   children,
   onEditColumn,
   onDeleteColumn
 }: {
   column: Column
-  columnIndex: number
   children: React.ReactNode
   onEditColumn: (columnId: string, columnTitle: string, columnColor?: string) => void
   onDeleteColumn: (column: Column) => void
@@ -1105,7 +1100,6 @@ function App() {
                   <SortableColumn
                     key={column.id}
                     column={column}
-                    columnIndex={columnIndex}
                     onEditColumn={startEditingColumn}
                     onDeleteColumn={openDeleteColumnConfirm}
                   >
