@@ -722,32 +722,39 @@ function SortableColumn({
   )
 }
 
+const STORAGE_KEY = 'light-kanban-columns'
+
 function App() {
-  const [columns, setColumns] = useState<Column[]>([
-    {
-      id: 'todo',
-      title: 'To Do',
-      cards: [
-        { id: 1, title: 'タスク 1', memo: '' },
-        { id: 2, title: 'タスク 2', memo: '' },
-      ]
-    },
-    {
-      id: 'in-progress',
-      title: 'In Progress',
-      cards: [
-        { id: 3, title: 'タスク 3', memo: '' },
-      ]
-    },
-    {
-      id: 'done',
-      title: 'Done',
-      cards: [
-        { id: 4, title: 'タスク 4', memo: '' },
-        { id: 5, title: 'タスク 5', memo: '' },
-      ]
+  const [columns, setColumns] = useState<Column[]>(() => {
+    // ローカルストレージからデータを読み込む
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error)
     }
-  ])
+
+    // デフォルトデータ
+    return [
+      {
+        id: 'todo',
+        title: 'To Do',
+        cards: []
+      },
+      {
+        id: 'in-progress',
+        title: 'In Progress',
+        cards: []
+      },
+      {
+        id: 'done',
+        title: 'Done',
+        cards: []
+      }
+    ]
+  })
 
   const [newCardContent, setNewCardContent] = useState('')
   const [isAddingCard, setIsAddingCard] = useState(false)
@@ -767,6 +774,15 @@ function App() {
   const [newColumnColor, setNewColumnColor] = useState<string>('#ffffff')
   const [activeColumn, setActiveColumn] = useState<Column | null>(null)
   const [addingColumnAtIndex, setAddingColumnAtIndex] = useState<number | null>(null)
+
+  // columnsが変更されるたびにローカルストレージに保存
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(columns))
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error)
+    }
+  }, [columns])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
