@@ -538,7 +538,7 @@ function SortableCard({
       }}
       {...attributes}
       {...listeners}
-      className="border border-gray-200 rounded p-3 hover:shadow-md transition-shadow cursor-move group select-none"
+      className="border border-gray-800 p-3 hover:shadow-md transition-shadow cursor-move group select-none"
       onDoubleClick={(e) => {
         e.stopPropagation()
         onView(card)
@@ -645,7 +645,7 @@ function SortableColumn({
         ...style,
         backgroundColor: column.color || '#ffffff',
       }}
-      className={`rounded-lg shadow-md p-4 min-w-[320px] flex-shrink-0 ${
+      className={`shadow-md p-4 min-w-[320px] flex-shrink-0 border border-gray-800 h-full flex flex-col ${
         isDragging ? 'opacity-0' : ''
       }`}
     >
@@ -710,12 +710,14 @@ function SortableColumn({
         </div>
       </div>
 
-      <SortableContext
-        items={column.cards.map(card => card.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        {children}
-      </SortableContext>
+      <div className="flex-1 overflow-y-auto">
+        <SortableContext
+          items={column.cards.map(card => card.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {children}
+        </SortableContext>
+      </div>
     </div>
   )
 }
@@ -1064,11 +1066,11 @@ function App() {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-h-screen bg-gray-100 p-8">
+      <div className="min-h-screen bg-gray-100 p-8 flex flex-col">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Light Kanban</h1>
 
-        <div className="flex justify-center">
-          <div className="flex overflow-x-auto pb-4">
+        <div className="flex justify-center flex-1 overflow-hidden">
+          <div className="flex overflow-x-auto pb-4 h-full">
           {columns.length === 0 ? (
             /* カラムが0個の場合の追加枠 */
             <button
@@ -1179,14 +1181,14 @@ function App() {
       <DragOverlay>
         {activeCard ? (
           <div
-            className="border border-gray-200 rounded p-3 shadow-lg rotate-3"
+            className="border border-gray-800 p-3 shadow-lg rotate-3"
             style={{ backgroundColor: activeCard.color || '#f9fafb' }}
           >
             <p className="text-gray-800">{activeCard.title}</p>
           </div>
         ) : activeColumn ? (
           <div
-            className="rounded-lg shadow-xl p-4 min-w-[320px] opacity-80"
+            className="shadow-xl p-4 min-w-[320px] opacity-80 border border-gray-800"
             style={{ backgroundColor: activeColumn.color || '#ffffff' }}
           >
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
@@ -1196,7 +1198,7 @@ function App() {
               {activeColumn.cards.map((card) => (
                 <div
                   key={card.id}
-                  className="border border-gray-200 rounded p-3"
+                  className="border border-gray-800 p-3"
                   style={{ backgroundColor: card.color || '#f9fafb' }}
                 >
                   <p className="text-gray-800">{card.title}</p>
