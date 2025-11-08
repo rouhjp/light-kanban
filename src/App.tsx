@@ -260,94 +260,6 @@ function DeleteCardConfirmModal({
   )
 }
 
-// 確認モーダルコンポーネント
-function ViewModal({
-  isOpen,
-  title,
-  memo,
-  onClose,
-  onEdit
-}: {
-  isOpen: boolean
-  title: string
-  memo: string
-  onClose: () => void
-  onEdit: () => void
-}) {
-  if (!isOpen) return null
-
-  return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">カードの詳細</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            title="閉じる"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              タイトル
-            </label>
-            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded">
-              <p className="text-gray-800">{title}</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メモ
-            </label>
-            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded min-h-[150px]">
-              <p className="text-gray-800 whitespace-pre-wrap">{memo}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-6 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-          >
-            閉じる
-          </button>
-          <button
-            onClick={onEdit}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
-            編集
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // カードの色オプション
 const CARD_COLORS = [
   { name: '白', value: '#ffffff', border: '#e5e7eb' },
@@ -497,13 +409,11 @@ function EditModal({
 function SortableCard({
   card,
   onStartEdit,
-  onDelete,
-  onView
+  onDelete
 }: {
   card: Card
   onStartEdit: (card: Card) => void
   onDelete: (card: Card) => void
-  onView: (card: Card) => void
 }) {
   const {
     attributes,
@@ -531,47 +441,25 @@ function SortableCard({
       ref={setNodeRef}
       style={{
         ...style,
-        backgroundColor: card.color || '#f9fafb',
+        backgroundColor: card.color || '#fef9c3',
       }}
       {...attributes}
       {...listeners}
-      className="border border-gray-800 p-3 hover:shadow-md transition-shadow cursor-move group select-none"
+      className="border border-gray-800 p-3 hover:shadow-md transition-shadow cursor-move group/card select-none"
       onDoubleClick={(e) => {
         e.stopPropagation()
-        onView(card)
+        onStartEdit(card)
       }}
+      title={card.memo || undefined}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <p className="text-gray-800">{card.title}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-gray-800 break-words">{card.title}</p>
         </div>
         <div
-          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="w-6 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity"
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onStartEdit(card)
-            }}
-            className="p-1 hover:bg-blue-100 rounded cursor-pointer"
-            title="編集"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -591,7 +479,7 @@ function SortableCard({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
@@ -640,45 +528,24 @@ function SortableColumn({
         ...style,
         backgroundColor: column.color || '#ffffff',
       }}
-      className={`shadow-md p-4 min-w-[320px] flex-shrink-0 border border-gray-800 h-full flex flex-col ${
+      {...attributes}
+      {...listeners}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        onEditColumn(column.id, column.title, column.color)
+      }}
+      className={`p-4 w-[320px] h-full flex-shrink-0 border border-gray-800 flex flex-col cursor-move group hover:shadow-md transition-shadow ${
         isDragging ? 'opacity-0' : ''
       }`}
     >
-      <div
-        className="flex items-center justify-between mb-4 group"
-        {...attributes}
-        {...listeners}
-      >
-        <h2 className="text-xl font-semibold text-gray-700 cursor-move select-none">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-700 select-none">
           {column.title}
         </h2>
         <div
-          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEditColumn(column.id, column.title, column.color)
-            }}
-            className="p-1 hover:bg-blue-100 rounded cursor-pointer"
-            title="カラム名を編集"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -698,14 +565,17 @@ function SortableColumn({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                d="M6 18L18 6M6 6l12 12"
               />
             </svg>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <SortableContext
           items={column.cards.map(card => card.id)}
           strategy={verticalListSortingStrategy}
@@ -932,7 +802,14 @@ function SortableTab({
         ...style,
         backgroundColor: isActive ? (tab.color || '#ffffff') : '#e5e7eb',
       }}
-      className={`px-6 py-3 font-medium transition-all cursor-move group flex-shrink-0 ${
+      {...attributes}
+      {...listeners}
+      onClick={onClick}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        onEdit(tab)
+      }}
+      className={`pl-6 pr-2 py-3 font-medium transition-all cursor-move group flex-shrink-0 ${
         isActive
           ? 'text-blue-600 shadow-md'
           : 'text-gray-600 hover:bg-gray-300'
@@ -941,64 +818,38 @@ function SortableTab({
       <div
         className="flex items-center justify-between gap-2"
       >
-        <div
-          {...attributes}
-          {...listeners}
-          onClick={onClick}
-          className="flex-1 cursor-move select-none"
-        >
+        <div className="flex-1 select-none">
           {tab.name}
         </div>
         <div
-          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          className={`ml-2 w-4 flex items-center justify-center ${isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'} transition-opacity`}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(tab)
-            }}
-            className="p-1 hover:bg-blue-100 rounded cursor-pointer"
-            title="編集"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {isActive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(tab)
+              }}
+              className="p-0.5 hover:bg-red-100 rounded cursor-pointer"
+              title="削除"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(tab)
-            }}
-            className="p-1 hover:bg-red-100 rounded cursor-pointer"
-            title="削除"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 text-red-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-red-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1087,9 +938,9 @@ function App() {
     setBoardsData(prev => ({
       ...prev,
       [newTabId]: [
-        { id: 'todo', title: 'To Do', cards: [] },
-        { id: 'in-progress', title: 'In Progress', cards: [] },
-        { id: 'done', title: 'Done', cards: [] }
+        { id: 'todo', title: 'To Do', cards: [], color: '#ffffff' },
+        { id: 'in-progress', title: 'In Progress', cards: [], color: '#ffffff' },
+        { id: 'done', title: 'Done', cards: [], color: '#ffffff' }
       ]
     }))
 
@@ -1109,17 +960,17 @@ function App() {
         } else {
           // デフォルトデータ
           initialData[tab.id] = [
-            { id: 'todo', title: 'To Do', cards: [] },
-            { id: 'in-progress', title: 'In Progress', cards: [] },
-            { id: 'done', title: 'Done', cards: [] }
+            { id: 'todo', title: 'To Do', cards: [], color: '#ffffff' },
+            { id: 'in-progress', title: 'In Progress', cards: [], color: '#ffffff' },
+            { id: 'done', title: 'Done', cards: [], color: '#ffffff' }
           ]
         }
       } catch (error) {
         console.error(`Failed to load board ${tab.id} from localStorage:`, error)
         initialData[tab.id] = [
-          { id: 'todo', title: 'To Do', cards: [] },
-          { id: 'in-progress', title: 'In Progress', cards: [] },
-          { id: 'done', title: 'Done', cards: [] }
+          { id: 'todo', title: 'To Do', cards: [], color: '#ffffff' },
+          { id: 'in-progress', title: 'In Progress', cards: [], color: '#ffffff' },
+          { id: 'done', title: 'Done', cards: [], color: '#ffffff' }
         ]
       }
     })
@@ -1151,7 +1002,6 @@ function App() {
   const [editingTitle, setEditingTitle] = useState('')
   const [editingMemo, setEditingMemo] = useState('')
   const [editingColor, setEditingColor] = useState<string>('#ffffff')
-  const [viewingCard, setViewingCard] = useState<Card | null>(null)
   const [deletingCard, setDeletingCard] = useState<Card | null>(null)
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
   const [editingColumnTitle, setEditingColumnTitle] = useState('')
@@ -1408,23 +1258,6 @@ function App() {
     }
   }
 
-  const openViewModal = (card: Card) => {
-    setViewingCard(card)
-  }
-
-  const closeViewModal = () => {
-    setViewingCard(null)
-  }
-
-  const openEditFromView = () => {
-    if (viewingCard) {
-      setEditingCardId(viewingCard.id)
-      setEditingTitle(viewingCard.title)
-      setEditingMemo(viewingCard.memo)
-      setViewingCard(null)
-    }
-  }
-
   const startEditingColumn = (columnId: string, columnTitle: string, columnColor?: string) => {
     setEditingColumnId(columnId)
     setEditingColumnTitle(columnTitle)
@@ -1586,7 +1419,7 @@ function App() {
           className="flex justify-center flex-1 overflow-hidden p-4"
           style={{ backgroundColor: tabs.find(t => t.id === activeTab)?.color || '#ffffff' }}
         >
-          <div className="flex overflow-x-auto pb-4 h-full w-full">
+          <div className="flex overflow-x-auto pb-4 w-full" style={{ height: '100%' }}>
           {tabs.length === 0 ? (
             /* タブが0個の場合は何も表示しない */
             <div className="flex items-center justify-center w-full">
@@ -1596,7 +1429,7 @@ function App() {
             /* カラムが0個の場合の追加枠 */
             <button
               onClick={() => setIsAddingColumn(true)}
-              className="rounded-lg p-4 w-full text-left text-gray-600 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors min-h-[200px] flex items-center justify-center"
+              className="p-4 w-[320px] text-left text-gray-600 border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors min-h-[200px] flex items-center justify-center"
             >
               + カラムを追加
             </button>
@@ -1620,7 +1453,6 @@ function App() {
                       card={card}
                       onStartEdit={startEditingCard}
                       onDelete={openDeleteConfirm}
-                      onView={openViewModal}
                     />
                   ))}
 
@@ -1646,13 +1478,7 @@ function App() {
                             }}
                             autoFocus
                           />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={addCard}
-                              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                            >
-                              追加
-                            </button>
+                          <div className="flex gap-2 justify-end">
                             <button
                               onClick={() => {
                                 setIsAddingCard(false)
@@ -1661,6 +1487,12 @@ function App() {
                               className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
                             >
                               キャンセル
+                            </button>
+                            <button
+                              onClick={addCard}
+                              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                            >
+                              追加
                             </button>
                           </div>
                         </div>
@@ -1702,7 +1534,7 @@ function App() {
         {activeCard ? (
           <div
             className="border border-gray-800 p-3 shadow-lg rotate-3"
-            style={{ backgroundColor: activeCard.color || '#f9fafb' }}
+            style={{ backgroundColor: activeCard.color || '#fef9c3' }}
           >
             <p className="text-gray-800">{activeCard.title}</p>
           </div>
@@ -1719,7 +1551,7 @@ function App() {
                 <div
                   key={card.id}
                   className="border border-gray-800 p-3"
-                  style={{ backgroundColor: card.color || '#f9fafb' }}
+                  style={{ backgroundColor: card.color || '#fef9c3' }}
                 >
                   <p className="text-gray-800">{card.title}</p>
                 </div>
@@ -1768,14 +1600,6 @@ function App() {
         cardTitle={deletingCard?.title || ''}
         onConfirm={confirmDelete}
         onCancel={closeDeleteConfirm}
-      />
-
-      <ViewModal
-        isOpen={viewingCard !== null}
-        title={viewingCard?.title || ''}
-        memo={viewingCard?.memo || ''}
-        onClose={closeViewModal}
-        onEdit={openEditFromView}
       />
 
       <EditModal
