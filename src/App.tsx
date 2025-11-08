@@ -717,39 +717,432 @@ function SortableColumn({
   )
 }
 
-const STORAGE_KEY = 'light-kanban-columns'
+const STORAGE_KEY_PREFIX = 'light-kanban-board-'
+const STORAGE_KEY_TABS = 'light-kanban-tabs'
+const getStorageKey = (tabId: number) => `${STORAGE_KEY_PREFIX}${tabId}`
+
+type Tab = {
+  id: number
+  name: string
+  color?: string
+}
+
+// タブ編集モーダルコンポーネント
+function EditTabModal({
+  isOpen,
+  tabName,
+  tabColor,
+  onSave,
+  onCancel,
+  onTabNameChange,
+  onTabColorChange,
+  isAddMode = false
+}: {
+  isOpen: boolean
+  tabName: string
+  tabColor?: string
+  onSave: () => void
+  onCancel: () => void
+  onTabNameChange: (name: string) => void
+  onTabColorChange: (color: string) => void
+  isAddMode?: boolean
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      const input = inputRef.current
+      const length = input.value.length
+      input.focus()
+      input.setSelectionRange(length, length)
+    }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          {isAddMode ? 'ボードを追加' : 'ボード名を編集'}
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ボード名
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={tabName}
+              onChange={(e) => onTabNameChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  onSave()
+                }
+                if (e.key === 'Escape') {
+                  onCancel()
+                }
+              }}
+              placeholder="ボード名を入力..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              カラーテーマ
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {COLUMN_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => onTabColorChange(color.value)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
+                    tabColor === color.value
+                      ? 'ring-2 ring-blue-500 ring-offset-2'
+                      : ''
+                  }`}
+                  style={{
+                    backgroundColor: color.value,
+                    borderColor: color.border,
+                  }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-6 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onSave}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// タブ削除確認モーダルコンポーネント
+function DeleteTabConfirmModal({
+  isOpen,
+  tabName,
+  onConfirm,
+  onCancel
+}: {
+  isOpen: boolean
+  tabName: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">「{tabName}」を削除しますか？</h3>
+          <p className="text-sm text-gray-600 mt-2">
+            このボードを削除すると、すべてのカラムとカードも削除されます。この操作は取り消せません。
+          </p>
+        </div>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            削除
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ドラッグ可能なタブコンポーネント
+function SortableTab({
+  tab,
+  isActive,
+  onClick,
+  onEdit,
+  onDelete
+}: {
+  tab: Tab
+  isActive: boolean
+  onClick: () => void
+  onEdit: (tab: Tab) => void
+  onDelete: (tab: Tab) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: tab.id,
+    data: {
+      type: 'tab',
+      tab,
+    }
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        ...style,
+        backgroundColor: isActive ? (tab.color || '#ffffff') : '#e5e7eb',
+      }}
+      className={`px-6 py-3 font-medium transition-all cursor-move group flex-shrink-0 ${
+        isActive
+          ? 'text-blue-600 shadow-md'
+          : 'text-gray-600 hover:bg-gray-300'
+      }`}
+    >
+      <div
+        className="flex items-center justify-between gap-2"
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          onClick={onClick}
+          className="flex-1 cursor-move select-none"
+        >
+          {tab.name}
+        </div>
+        <div
+          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(tab)
+            }}
+            className="p-1 hover:bg-blue-100 rounded cursor-pointer"
+            title="編集"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(tab)
+            }}
+            className="p-1 hover:bg-red-100 rounded cursor-pointer"
+            title="削除"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// タブコンポーネント
+function TabBar({
+  tabs,
+  activeTab,
+  onTabChange,
+  onAddTab,
+  onEditTab,
+  onDeleteTab
+}: {
+  tabs: Tab[]
+  activeTab: number
+  onTabChange: (tabIndex: number) => void
+  onAddTab: () => void
+  onEditTab: (tab: Tab) => void
+  onDeleteTab: (tab: Tab) => void
+}) {
+  return (
+    <div className="flex gap-2 overflow-x-auto">
+      <SortableContext
+        items={tabs.map(tab => tab.id)}
+        strategy={horizontalListSortingStrategy}
+      >
+        {tabs.map((tab) => (
+          <SortableTab
+            key={tab.id}
+            tab={tab}
+            isActive={activeTab === tab.id}
+            onClick={() => onTabChange(tab.id)}
+            onEdit={onEditTab}
+            onDelete={onDeleteTab}
+          />
+        ))}
+      </SortableContext>
+      <button
+        onClick={onAddTab}
+        className="px-4 py-3 font-medium transition-all bg-gray-200 text-gray-600 hover:bg-gray-300 flex-shrink-0"
+        title="新しいボードを追加"
+      >
+        +
+      </button>
+    </div>
+  )
+}
 
 function App() {
-  const [columns, setColumns] = useState<Column[]>(() => {
-    // ローカルストレージからデータを読み込む
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    // ローカルストレージからタブ情報を読み込む
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const saved = localStorage.getItem(STORAGE_KEY_TABS)
       if (saved) {
         return JSON.parse(saved)
       }
     } catch (error) {
-      console.error('Failed to load from localStorage:', error)
+      console.error('Failed to load tabs from localStorage:', error)
     }
 
-    // デフォルトデータ
+    // デフォルトタブ
     return [
-      {
-        id: 'todo',
-        title: 'To Do',
-        cards: []
-      },
-      {
-        id: 'in-progress',
-        title: 'In Progress',
-        cards: []
-      },
-      {
-        id: 'done',
-        title: 'Done',
-        cards: []
-      }
+      { id: 0, name: 'ボード 1', color: '#ffffff' },
+      { id: 1, name: 'ボード 2', color: '#dbeafe' },
+      { id: 2, name: 'ボード 3', color: '#dcfce7' }
     ]
   })
+  const [activeTab, setActiveTab] = useState(0)
+
+  // 新しいタブを追加
+  const addNewTab = () => {
+    // 新しいタブIDを生成（既存のタブIDの最大値+1）
+    const newTabId = tabs.length > 0 ? Math.max(...tabs.map(t => t.id)) + 1 : 0
+    const newTab: Tab = {
+      id: newTabId,
+      name: 'ボード',
+      color: '#ffffff'
+    }
+
+    // タブを追加
+    setTabs([...tabs, newTab])
+
+    // 新しいボードのデフォルトデータを設定
+    setBoardsData(prev => ({
+      ...prev,
+      [newTabId]: [
+        { id: 'todo', title: 'To Do', cards: [] },
+        { id: 'in-progress', title: 'In Progress', cards: [] },
+        { id: 'done', title: 'Done', cards: [] }
+      ]
+    }))
+
+    // 新しいタブをアクティブにする
+    setActiveTab(newTabId)
+  }
+
+  // タブごとのカンバンデータを管理
+  const [boardsData, setBoardsData] = useState<Record<number, Column[]>>(() => {
+    const initialData: Record<number, Column[]> = {}
+
+    tabs.forEach(tab => {
+      try {
+        const saved = localStorage.getItem(getStorageKey(tab.id))
+        if (saved) {
+          initialData[tab.id] = JSON.parse(saved)
+        } else {
+          // デフォルトデータ
+          initialData[tab.id] = [
+            { id: 'todo', title: 'To Do', cards: [] },
+            { id: 'in-progress', title: 'In Progress', cards: [] },
+            { id: 'done', title: 'Done', cards: [] }
+          ]
+        }
+      } catch (error) {
+        console.error(`Failed to load board ${tab.id} from localStorage:`, error)
+        initialData[tab.id] = [
+          { id: 'todo', title: 'To Do', cards: [] },
+          { id: 'in-progress', title: 'In Progress', cards: [] },
+          { id: 'done', title: 'Done', cards: [] }
+        ]
+      }
+    })
+
+    return initialData
+  })
+
+  // 現在アクティブなタブのカンバンデータ
+  const columns = boardsData[activeTab] || []
+
+  const setColumns = (newColumns: Column[] | ((prev: Column[]) => Column[])) => {
+    setBoardsData(prev => {
+      const currentColumns = prev[activeTab] || []
+      const updatedColumns = typeof newColumns === 'function'
+        ? newColumns(currentColumns)
+        : newColumns
+
+      return {
+        ...prev,
+        [activeTab]: updatedColumns
+      }
+    })
+  }
 
   const [newCardContent, setNewCardContent] = useState('')
   const [isAddingCard, setIsAddingCard] = useState(false)
@@ -769,15 +1162,31 @@ function App() {
   const [newColumnColor, setNewColumnColor] = useState<string>('#ffffff')
   const [activeColumn, setActiveColumn] = useState<Column | null>(null)
   const [addingColumnAtIndex, setAddingColumnAtIndex] = useState<number | null>(null)
+  const [activeTabDrag, setActiveTabDrag] = useState<Tab | null>(null)
+  const [editingTab, setEditingTab] = useState<Tab | null>(null)
+  const [editingTabName, setEditingTabName] = useState('')
+  const [editingTabColor, setEditingTabColor] = useState<string>('#ffffff')
+  const [deletingTab, setDeletingTab] = useState<Tab | null>(null)
 
-  // columnsが変更されるたびにローカルストレージに保存
+  // boardsDataが変更されるたびにローカルストレージに保存
+  useEffect(() => {
+    Object.entries(boardsData).forEach(([tabId, columns]) => {
+      try {
+        localStorage.setItem(getStorageKey(Number(tabId)), JSON.stringify(columns))
+      } catch (error) {
+        console.error(`Failed to save board ${tabId} to localStorage:`, error)
+      }
+    })
+  }, [boardsData])
+
+  // タブ情報が変更されるたびにローカルストレージに保存
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(columns))
+      localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs))
     } catch (error) {
-      console.error('Failed to save to localStorage:', error)
+      console.error('Failed to save tabs to localStorage:', error)
     }
-  }, [columns])
+  }, [tabs])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -808,6 +1217,13 @@ function App() {
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
 
+    // タブのドラッグかチェック
+    const tab = tabs.find(t => t.id === active.id)
+    if (tab) {
+      setActiveTabDrag(tab)
+      return
+    }
+
     // カラムのドラッグかチェック
     const column = columns.find(col => col.id === active.id)
     if (column) {
@@ -828,6 +1244,14 @@ function App() {
 
     const activeData = active.data.current
     const overData = over.data.current
+
+    // タブのドラッグの場合
+    if (activeData?.type === 'tab' && overData?.type === 'tab' && active.id !== over.id) {
+      const oldIndex = tabs.findIndex(t => t.id === active.id)
+      const newIndex = tabs.findIndex(t => t.id === over.id)
+      setTabs(arrayMove(tabs, oldIndex, newIndex))
+      return
+    }
 
     // カラムのドラッグの場合
     if (activeData?.type === 'column') {
@@ -902,6 +1326,7 @@ function App() {
   const handleDragEnd = () => {
     setActiveCard(null)
     setActiveColumn(null)
+    setActiveTabDrag(null)
   }
 
   const addCard = () => {
@@ -1069,6 +1494,74 @@ function App() {
     setAddingColumnAtIndex(null)
   }
 
+  // タブ編集機能
+  const startEditingTab = (tab: Tab) => {
+    setEditingTab(tab)
+    setEditingTabName(tab.name)
+    setEditingTabColor(tab.color || '#ffffff')
+  }
+
+  const saveTabEdit = () => {
+    if (editingTab && editingTabName.trim()) {
+      setTabs(prevTabs =>
+        prevTabs.map(tab =>
+          tab.id === editingTab.id
+            ? { ...tab, name: editingTabName, color: editingTabColor }
+            : tab
+        )
+      )
+    }
+    setEditingTab(null)
+    setEditingTabName('')
+    setEditingTabColor('#ffffff')
+  }
+
+  const cancelTabEdit = () => {
+    setEditingTab(null)
+    setEditingTabName('')
+    setEditingTabColor('#ffffff')
+  }
+
+  // タブ削除機能
+  const openDeleteTabConfirm = (tab: Tab) => {
+    setDeletingTab(tab)
+  }
+
+  const closeDeleteTabConfirm = () => {
+    setDeletingTab(null)
+  }
+
+  const confirmDeleteTab = () => {
+    if (deletingTab) {
+      // タブを削除
+      setTabs(prevTabs => prevTabs.filter(tab => tab.id !== deletingTab.id))
+
+      // ボードデータを削除
+      setBoardsData(prev => {
+        const newData = { ...prev }
+        delete newData[deletingTab.id]
+        return newData
+      })
+
+      // ローカルストレージからも削除
+      try {
+        localStorage.removeItem(getStorageKey(deletingTab.id))
+      } catch (error) {
+        console.error(`Failed to delete board ${deletingTab.id} from localStorage:`, error)
+      }
+
+      // 削除したタブがアクティブだった場合、別のタブに切り替え
+      if (activeTab === deletingTab.id) {
+        const remainingTabs = tabs.filter(tab => tab.id !== deletingTab.id)
+        if (remainingTabs.length > 0) {
+          setActiveTab(remainingTabs[0].id)
+        }
+      }
+
+      setDeletingTab(null)
+    }
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -1080,9 +1573,26 @@ function App() {
       <div className="min-h-screen bg-gray-100 p-8 flex flex-col">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Light Kanban</h1>
 
-        <div className="flex justify-center flex-1 overflow-hidden">
-          <div className="flex overflow-x-auto pb-4 h-full">
-          {columns.length === 0 ? (
+        <TabBar
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          onAddTab={addNewTab}
+          onEditTab={startEditingTab}
+          onDeleteTab={openDeleteTabConfirm}
+        />
+
+        <div
+          className="flex justify-center flex-1 overflow-hidden p-4"
+          style={{ backgroundColor: tabs.find(t => t.id === activeTab)?.color || '#ffffff' }}
+        >
+          <div className="flex overflow-x-auto pb-4 h-full w-full">
+          {tabs.length === 0 ? (
+            /* タブが0個の場合は何も表示しない */
+            <div className="flex items-center justify-center w-full">
+              <p className="text-gray-500 text-lg">+ ボタンからボードを追加してください</p>
+            </div>
+          ) : columns.length === 0 ? (
             /* カラムが0個の場合の追加枠 */
             <button
               onClick={() => setIsAddingColumn(true)}
@@ -1278,6 +1788,23 @@ function App() {
         onTitleChange={setEditingTitle}
         onMemoChange={setEditingMemo}
         onColorChange={setEditingColor}
+      />
+
+      <EditTabModal
+        isOpen={editingTab !== null}
+        tabName={editingTabName}
+        tabColor={editingTabColor}
+        onSave={saveTabEdit}
+        onCancel={cancelTabEdit}
+        onTabNameChange={setEditingTabName}
+        onTabColorChange={setEditingTabColor}
+      />
+
+      <DeleteTabConfirmModal
+        isOpen={deletingTab !== null}
+        tabName={deletingTab?.name || ''}
+        onConfirm={confirmDeleteTab}
+        onCancel={closeDeleteTabConfirm}
       />
     </DndContext>
   )
