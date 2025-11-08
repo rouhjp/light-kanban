@@ -1038,6 +1038,27 @@ function App() {
     }
   }, [tabs])
 
+  // グローバルキーボードイベント（モーダルが開いていない時のEnterキー）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // モーダルが開いている場合は何もしない
+      if (editingCardId !== null || editingColumnId !== null || editingTab !== null ||
+          deletingCard !== null || deletingColumn !== null || deletingTab !== null ||
+          isAddingColumn || isAddingCard) {
+        return
+      }
+
+      // Enterキーが押された場合
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        setIsAddingCard(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [editingCardId, editingColumnId, editingTab, deletingCard, deletingColumn, deletingTab, isAddingColumn, isAddingCard])
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -1469,6 +1490,7 @@ function App() {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault()
+                                e.stopPropagation()
                                 addCard()
                               }
                               if (e.key === 'Escape') {
