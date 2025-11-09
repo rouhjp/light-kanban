@@ -62,9 +62,11 @@ export function EditTabModal({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
+                  e.stopPropagation()
                   onSave()
                 }
                 if (e.key === 'Escape') {
+                  e.stopPropagation()
                   onCancel()
                 }
               }}

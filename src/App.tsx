@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Card, Column, Tab } from './types'
@@ -87,6 +87,14 @@ function App() {
     },
     () => setIsAddingCard(true)
   )
+
+  // タブ切り替え時にカード入力状態をリセット
+  useEffect(() => {
+    if (isAddingCard) {
+      setIsAddingCard(false)
+      setNewCardContent('')
+    }
+  }, [activeTab])
 
   // 新しいタブを追加
   const addNewTab = () => {

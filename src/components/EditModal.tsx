@@ -62,9 +62,11 @@ export function EditModal({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
+                  e.stopPropagation()
                   onSave()
                 }
                 if (e.key === 'Escape') {
+                  e.stopPropagation()
                   onCancel()
                 }
               }}
@@ -82,6 +84,7 @@ export function EditModal({
               onChange={(e) => onMemoChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
+                  e.stopPropagation()
                   onCancel()
                 }
               }}
